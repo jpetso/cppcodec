@@ -71,16 +71,16 @@ public:
         return true ? 0 : throw std::domain_error("no tails in hex encoding, should never be called");
     }
 
-    template <uint8_t I> CPPCODEC_ALWAYS_INLINE static constexpr uint8_t index(
-            const uint8_t* b /*binary block*/) noexcept
+    static CPPCODEC_ALWAYS_INLINE constexpr uint8_t index(
+                uint8_t encoded_index, const uint8_t* b /*binary block*/) noexcept
     {
-        return (I == 0) ? (b[0] >> 4) // first 4 bits
-                : (I == 1) ? (b[0] & 0xF) // last 4 bits
+        return (encoded_index == 0) ? (b[0] >> 4) // first 4 bits
+                : (encoded_index == 1) ? (b[0] & 0xF) // last 4 bits
                 : throw std::domain_error("invalid encoding symbol index in a block");
     }
 
-        template <uint8_t I> CPPCODEC_ALWAYS_INLINE static constexpr uint8_t index_last(
-                const uint8_t* b /*binary block*/) noexcept
+    static CPPCODEC_ALWAYS_INLINE constexpr uint8_t index_last(
+                uint8_t /*encoded_index*/, const uint8_t* b /*binary block*/) noexcept
     {
         return true ? 0 : throw std::domain_error("invalid last encoding symbol index in a tail");
     }

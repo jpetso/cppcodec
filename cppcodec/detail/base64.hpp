@@ -53,21 +53,21 @@ public:
                 : throw std::domain_error("invalid number of bytes in a tail block");
     }
 
-    template <uint8_t I> CPPCODEC_ALWAYS_INLINE static constexpr uint8_t index(
-            const uint8_t* b /*binary block*/) noexcept
+    static CPPCODEC_ALWAYS_INLINE constexpr uint8_t index(
+            uint8_t encoded_index, const uint8_t* b /*binary block*/) noexcept
     {
-        return (I == 0) ? (b[0] >> 2) // first 6 bits
-                : (I == 1) ? (((b[0] & 0x3) << 4) | (b[1] >> 4))
-                : (I == 2) ? (((b[1] & 0xF) << 2) | (b[2] >> 6))
-                : (I == 3) ? (b[2] & 0x3F) // last 6 bits
+        return (encoded_index == 0) ? (b[0] >> 2) // first 6 bits
+                : (encoded_index == 1) ? (((b[0] & 0x3) << 4) | (b[1] >> 4))
+                : (encoded_index == 2) ? (((b[1] & 0xF) << 2) | (b[2] >> 6))
+                : (encoded_index == 3) ? (b[2] & 0x3F) // last 6 bits
                 : throw std::domain_error("invalid encoding symbol index in a block");
     }
 
-    template <uint8_t I> CPPCODEC_ALWAYS_INLINE static constexpr uint8_t index_last(
-            const uint8_t* b /*binary block*/) noexcept
+    static CPPCODEC_ALWAYS_INLINE constexpr uint8_t index_last(
+            uint8_t encoded_index, const uint8_t* b /*binary block*/) noexcept
     {
-        return (I == 1) ? ((b[0] & 0x3) << 4)    // abbreviated 2nd symbol
-                : (I == 2) ? ((b[1] & 0xF) << 2) // abbreviated 3rd symbol
+        return (encoded_index == 1) ? ((b[0] & 0x3) << 4)    // abbreviated 2nd symbol
+                : (encoded_index == 2) ? ((b[1] & 0xF) << 2) // abbreviated 3rd symbol
                 : throw std::domain_error("invalid last encoding symbol index in a tail");
     }
 

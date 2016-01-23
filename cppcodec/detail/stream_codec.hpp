@@ -65,68 +65,21 @@ struct padder<true> {
     }
 };
 
-template <size_t I>
-struct enc {
-    // Block encoding: Go from 0 to (block size - 1), append a symbol for each iteration unconditionally.
-    template <typename Codec, typename CodecVariant, typename Result, typename ResultState>
-    static CPPCODEC_ALWAYS_INLINE void block(Result& encoded, ResultState& state, const uint8_t* src)
-    {
-        using EncodedBlockSizeT = decltype(Codec::encoded_block_size());
-        constexpr static const EncodedBlockSizeT SymbolIndex = static_cast<EncodedBlockSizeT>(I - 1);
-
-        enc<I - 1>().template block<Codec, CodecVariant>(encoded, state, src);
-        data::put(encoded, state, CodecVariant::symbol(Codec::template index<SymbolIndex>(src)));
-    }
-
-    // Tail encoding: Go from 0 until (runtime) num_symbols, append a symbol for each iteration.
-    template <typename Codec, typename CodecVariant, typename Result, typename ResultState,
-            typename EncodedBlockSizeT = decltype(Codec::encoded_block_size())>
-    static CPPCODEC_ALWAYS_INLINE void tail(
-            Result& encoded, ResultState& state, const uint8_t* src, EncodedBlockSizeT num_symbols)
-    {
-        constexpr static const EncodedBlockSizeT SymbolIndex = Codec::encoded_block_size() - I;
-        constexpr static const EncodedBlockSizeT NumSymbols = SymbolIndex + static_cast<EncodedBlockSizeT>(1);
-
-        if (num_symbols == NumSymbols) {
-            data::put(encoded, state, CodecVariant::symbol(Codec::template index_last<SymbolIndex>(src)));
-            padder<CodecVariant::generates_padding()> pad;
-            pad.template operator()<CodecVariant>(encoded, state, Codec::encoded_block_size() - NumSymbols);
-            return;
-        }
-        data::put(encoded, state, CodecVariant::symbol(Codec::template index<SymbolIndex>(src)));
-        enc<I - 1>().template tail<Codec, CodecVariant>(encoded, state, src, num_symbols);
-    }
-};
-
-template<> // terminating specialization
-struct enc<0> {
-
-    template <typename Codec, typename CodecVariant, typename Result, typename ResultState>
-    static CPPCODEC_ALWAYS_INLINE void block(Result&, ResultState&, const uint8_t*) { }
-
-    template <typename Codec, typename CodecVariant, typename Result, typename ResultState,
-            typename EncodedBlockSizeT = decltype(Codec::encoded_block_size())>
-    static CPPCODEC_ALWAYS_INLINE void tail(Result&, ResultState&, const uint8_t*, EncodedBlockSizeT)
-    {
-        abort(); // Not reached: block() should be called if num_symbols == block size, not tail().
-    }
-};
-
 template <typename Codec, typename CodecVariant>
 template <typename Result, typename ResultState>
 inline void stream_codec<Codec, CodecVariant>::encode(
         Result& encoded_result, ResultState& state,
         const uint8_t* src, size_t src_size)
 {
-    using encoder = enc<Codec::encoded_block_size()>;
-
     const uint8_t* src_end = src + src_size;
 
     if (src_size >= Codec::binary_block_size()) {
         src_end -= Codec::binary_block_size();
 
         for (; src <= src_end; src += Codec::binary_block_size()) {
-            encoder::template block<Codec, CodecVariant>(encoded_result, state, src);
+            for (int i = 0; i < Codec::encoded_block_size(); ++i) {
+                data::put(encoded_result, state, CodecVariant::symbol(Codec::index(i, src)));
+            }
         }
         src_end += Codec::binary_block_size();
     }
@@ -137,8 +90,16 @@ inline void stream_codec<Codec, CodecVariant>::encode(
             abort();
             return;
         }
-        auto num_symbols = Codec::num_encoded_tail_symbols(remaining_src_len);
-        encoder::template tail<Codec, CodecVariant>(encoded_result, state, src, num_symbols);
+        auto last_symbol_index = Codec::num_encoded_tail_symbols(remaining_src_len) - 1;
+
+        for (int i = 0; i < last_symbol_index; ++i) {
+            data::put(encoded_result, state, CodecVariant::symbol(Codec::index(i, src)));
+        }
+        data::put(encoded_result, state, CodecVariant::symbol(Codec::index_last(last_symbol_index, src)));
+
+        padder<CodecVariant::generates_padding()> pad;
+        pad.template operator()<CodecVariant>(
+                encoded_result, state, Codec::encoded_block_size() - (last_symbol_index + 1));
     }
 }
 
