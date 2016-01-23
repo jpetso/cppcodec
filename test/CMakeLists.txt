@@ -3,3 +3,5 @@ include_directories(BEFORE ${PROJECT_SOURCE_DIR})
 
 add_executable(test_cppcodec test_cppcodec.cpp)
 add_test(cppcodec test_cppcodec)
+
+add_executable(bench_base32_crockford bench_base32_crockford.cpp)
