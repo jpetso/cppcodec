@@ -25,7 +25,6 @@
 #define CPPCODEC_DETAIL_HEX
 
 #include <stdint.h>
-#include <stdlib.h> // for abort()
 
 #include "../data/access.hpp"
 #include "../parse_error.hpp"
@@ -34,9 +33,8 @@
 namespace cppcodec {
 namespace detail {
 
-class hex_base
+struct hex_base
 {
-public:
     static inline constexpr uint8_t index_of(char c)
     {
         // Hex decoding is always case-insensitive (even in RFC 4648),
@@ -59,12 +57,32 @@ public:
     static inline constexpr bool is_padding_symbol(uint8_t /*index*/) { return false; }
 };
 
-template <typename CodecVariant>
-class hex : public CodecVariant::template codec_impl<hex<CodecVariant>>
+struct hex_block_decoder
 {
-public:
+    template <typename Result, typename ResultState>
+    static CPPCODEC_ALWAYS_INLINE void block(
+            Result& decoded, ResultState& state, const uint8_t* idx)
+    {
+        data::put(decoded, state, (uint8_t)((idx[0] << 4) | idx[1]));
+    }
+
+    template <typename Result, typename ResultState>
+    static CPPCODEC_ALWAYS_INLINE void tail(Result&, ResultState&, const uint8_t*, size_t)
+    {
+        throw invalid_input_length(
+                "odd-length hex input is not supported by the streaming octet decoder, "
+                "use a place-based number decoder instead");
+    }
+};
+
+template <typename CodecVariant>
+struct hex : public CodecVariant::template codec_impl<hex<CodecVariant>>
+{
     static inline constexpr uint8_t binary_block_size() { return 1; }
     static inline constexpr uint8_t encoded_block_size() { return 2; }
+
+    using block_encoder = per_index_block_encoder<hex, CodecVariant>;
+    using block_decoder = hex_block_decoder;
 
     static CPPCODEC_ALWAYS_INLINE constexpr uint8_t num_encoded_tail_symbols(uint8_t /*num_bytes*/) noexcept
     {
@@ -91,23 +109,6 @@ public:
     template <typename Result, typename ResultState>
     static void decode_tail(Result& decoded, ResultState&, const uint8_t* idx, size_t idx_len);
 };
-
-
-template <typename CodecVariant>
-template <typename Result, typename ResultState>
-inline void hex<CodecVariant>::decode_block(Result& decoded, ResultState& state, const uint8_t* idx)
-{
-    data::put(decoded, state, (uint8_t)((idx[0] << 4) | idx[1]));
-}
-
-template <typename CodecVariant>
-template <typename Result, typename ResultState>
-inline void hex<CodecVariant>::decode_tail(Result&, ResultState&, const uint8_t*, size_t)
-{
-    throw invalid_input_length(
-            "odd-length hex input is not supported by the streaming octet decoder, "
-            "use a place-based number decoder instead");
-}
 
 } // namespace detail
 } // namespace cppcodec

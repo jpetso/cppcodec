@@ -20,6 +20,8 @@ set(PUBLIC_HEADERS
     cppcodec/base64_default_url.hpp
     cppcodec/base64_rfc4648.hpp
     cppcodec/base64_url.hpp
+    # base85
+    cppcodec/base85_z85.hpp
     # hex
     cppcodec/hex_default_lower.hpp
     cppcodec/hex_default_upper.hpp
@@ -31,6 +33,7 @@ set(PUBLIC_HEADERS
     cppcodec/data/raw_result_buffer.hpp
     cppcodec/detail/base32.hpp
     cppcodec/detail/base64.hpp
+    cppcodec/detail/base85.hpp
     cppcodec/detail/codec.hpp
     cppcodec/detail/config.hpp
     cppcodec/detail/hex.hpp

@@ -29,6 +29,7 @@
 #include <cppcodec/base32_rfc4648.hpp>
 #include <cppcodec/base64_rfc4648.hpp>
 #include <cppcodec/base64_url.hpp>
+#include <cppcodec/base85_z85.hpp>
 #include <cppcodec/hex_lower.hpp>
 #include <cppcodec/hex_upper.hpp>
 #include <stdint.h>
@@ -685,6 +686,120 @@ TEST_CASE("base64 (URL-safe)", "[base64][url]") {
         REQUIRE_THROWS_AS(base64::decode("A&B="), cppcodec::symbol_error&);
         REQUIRE_THROWS_AS(base64::decode("++"), cppcodec::symbol_error&); // this is not standard base64
         REQUIRE_THROWS_AS(base64::decode("//"), cppcodec::symbol_error&); // ...ditto
+    }
+}
+
+TEST_CASE("z85", "[base85][z85]") {
+    using z85 = cppcodec::base85_z85;
+
+    SECTION("encoded size calculation") {
+        REQUIRE(z85::encoded_size(0) == 0);
+        REQUIRE(z85::encoded_size(1) == 2); // TODO: except when binary_size != block_size * N
+        REQUIRE(z85::encoded_size(2) == 3);
+        REQUIRE(z85::encoded_size(3) == 4);
+        REQUIRE(z85::encoded_size(4) == 5);
+        REQUIRE(z85::encoded_size(5) == 7);
+        REQUIRE(z85::encoded_size(6) == 8);
+        REQUIRE(z85::encoded_size(7) == 9);
+        REQUIRE(z85::encoded_size(8) == 10);
+        REQUIRE(z85::encoded_size(12) == 15);
+    }
+
+    SECTION("maximum decoded size calculation") {
+        REQUIRE(z85::decoded_max_size(0) == 0);
+        REQUIRE(z85::decoded_max_size(1) == 0);
+        REQUIRE(z85::decoded_max_size(2) == 1); // TODO: except (?) if not block size multiple
+        REQUIRE(z85::decoded_max_size(3) == 2);
+        REQUIRE(z85::decoded_max_size(4) == 3);
+        REQUIRE(z85::decoded_max_size(5) == 4);
+        REQUIRE(z85::decoded_max_size(6) == 4);
+        REQUIRE(z85::decoded_max_size(7) == 5);
+        REQUIRE(z85::decoded_max_size(8) == 6);
+        REQUIRE(z85::decoded_max_size(9) == 7);
+        REQUIRE(z85::decoded_max_size(10) == 8);
+        REQUIRE(z85::decoded_max_size(11) == 8);
+        REQUIRE(z85::decoded_max_size(12) == 9);
+        REQUIRE(z85::decoded_max_size(15) == 12);
+    }
+
+    SECTION("encoding data") {
+        /*
+        REQUIRE(base64::encode(std::vector<uint8_t>()) == "");
+        REQUIRE(base64::encode(std::vector<uint8_t>({0})) == "AA==");
+        REQUIRE(base64::encode(std::vector<uint8_t>({0, 0})) == "AAA=");
+        REQUIRE(base64::encode(std::vector<uint8_t>({0, 0, 0})) == "AAAA");
+        REQUIRE(base64::encode(std::vector<uint8_t>({0, 0, 0, 0})) == "AAAAAA==");
+        REQUIRE(base64::encode(std::vector<uint8_t>({0, 0, 0, 0, 0})) == "AAAAAAA=");
+        REQUIRE(base64::encode(std::vector<uint8_t>({0, 0, 0, 0, 0, 0})) == "AAAAAAAA");
+*/
+        // Test vectors from the Z85 specification.
+        REQUIRE(z85::encode(std::vector<uint8_t>({
+                0x86, 0x4F, 0xD2, 0x6F, 0xB5, 0x59, 0xF7, 0x5B })) == "HelloWorld");
+/*
+        // RFC 4648: 10. Test Vectors
+        REQUIRE(base64::encode(std::string("")) == "");
+        REQUIRE(base64::encode(std::string("f")) == "Zg==");
+        REQUIRE(base64::encode(std::string("fo")) == "Zm8=");
+        REQUIRE(base64::encode(std::string("foo")) == "Zm9v");
+        REQUIRE(base64::encode(std::string("foob")) == "Zm9vYg==");
+        REQUIRE(base64::encode(std::string("fooba")) == "Zm9vYmE=");
+        REQUIRE(base64::encode(std::string("foobar")) == "Zm9vYmFy");
+
+        // Other test strings.
+        REQUIRE(base64::encode(std::string("123")) == "MTIz");
+        REQUIRE(base64::encode(std::string("ABC")) == "QUJD");
+        REQUIRE(base64::encode(std::string("\xFF\xFF\xFF")) == "____");
+        */
+    }
+
+    SECTION("decoding data") {
+        /*
+        REQUIRE(base64::decode("") == std::vector<uint8_t>());
+        REQUIRE(base64::decode("AA==") == std::vector<uint8_t>({0}));
+        REQUIRE(base64::decode("AAA=") == std::vector<uint8_t>({0, 0}));
+        REQUIRE(base64::decode("AAAA") == std::vector<uint8_t>({0, 0, 0}));
+        REQUIRE(base64::decode("AAAAAA==") == std::vector<uint8_t>({0, 0, 0, 0}));
+        REQUIRE(base64::decode("AAAAAAA=") == std::vector<uint8_t>({0, 0, 0, 0, 0}));
+        REQUIRE(base64::decode("AAAAAAAA") == std::vector<uint8_t>({0, 0, 0, 0, 0, 0}));
+    */
+
+        // Test vectors from the Z85 specification.
+        REQUIRE(z85::decode("HelloWorld") == std::vector<uint8_t>({
+                0x86, 0x4F, 0xD2, 0x6F, 0xB5, 0x59, 0xF7, 0x5B }));
+
+        /*
+        // RFC 4648: 9. Illustrations and Examples, adapted for more special characters
+        REQUIRE(base64::decode("FPu_A9l-") == std::vector<uint8_t>({0x14, 0xFB, 0xBF, 0x03, 0xD9, 0x7E}));
+        REQUIRE(base64::decode("FPu_A9k=") == std::vector<uint8_t>({0x14, 0xFB, 0xBF, 0x03, 0xD9}));
+        REQUIRE(base64::decode("FPu_Aw==") == std::vector<uint8_t>({0x14, 0xFB, 0xBF, 0x03}));
+
+        // RFC 4648: 10. Test Vectors
+        REQUIRE(base64::decode<std::string>("") == "");
+        REQUIRE(base64::decode<std::string>("Zg==") == "f");
+        REQUIRE(base64::decode<std::string>("Zm8=") == "fo");
+        REQUIRE(base64::decode<std::string>("Zm9v") == "foo");
+        REQUIRE(base64::decode<std::string>("Zm9vYg==") == "foob");
+        REQUIRE(base64::decode<std::string>("Zm9vYmE=") == "fooba");
+        REQUIRE(base64::decode<std::string>("Zm9vYmFy") == "foobar");
+
+        // Other test strings.
+        REQUIRE(base64::decode<std::string>("MTIz") == "123");
+        REQUIRE(base64::decode<std::string>("QUJD") == "ABC");
+        REQUIRE(base64::decode("____") == std::vector<uint8_t>({255, 255, 255}));
+
+        // An invalid number of symbols should throw the right kind of parse_error.
+        REQUIRE_THROWS_AS(base64::decode("A"), cppcodec::padding_error&);
+        REQUIRE_THROWS_AS(base64::decode("AA"), cppcodec::padding_error&);
+        REQUIRE_THROWS_AS(base64::decode("ABCDE"), cppcodec::padding_error&);
+        REQUIRE_THROWS_AS(base64::decode("A==="), cppcodec::invalid_input_length&);
+        REQUIRE_THROWS_AS(base64::decode("AAAA===="), cppcodec::invalid_input_length&);
+        REQUIRE_THROWS_AS(base64::decode("AAAAA==="), cppcodec::invalid_input_length&);
+
+        // An invalid symbol should throw a symbol error.
+        REQUIRE_THROWS_AS(base64::decode("A&B="), cppcodec::symbol_error&);
+        REQUIRE_THROWS_AS(base64::decode("++"), cppcodec::symbol_error&); // this is not standard base64
+        REQUIRE_THROWS_AS(base64::decode("//"), cppcodec::symbol_error&); // ...ditto
+    */
     }
 }
 

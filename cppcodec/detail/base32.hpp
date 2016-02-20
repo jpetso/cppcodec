@@ -31,7 +31,6 @@
 #define CPPCODEC_DETAIL_BASE32
 
 #include <stdint.h>
-#include <stdlib.h> // for abort()
 
 #include "../data/access.hpp"
 #include "../parse_error.hpp"
@@ -41,12 +40,57 @@
 namespace cppcodec {
 namespace detail {
 
-template <typename CodecVariant>
-class base32 : public CodecVariant::template codec_impl<base32<CodecVariant>>
+struct base32_block_decoder
 {
-public:
+    template <typename Result, typename ResultState>
+    static CPPCODEC_ALWAYS_INLINE void block(
+            Result& decoded, ResultState& state, const uint8_t* idx)
+    {
+        data::put(decoded, state, (uint8_t)(((idx[0] << 3) & 0xF8) | ((idx[1] >> 2) & 0x7)));
+        data::put(decoded, state, (uint8_t)(((idx[1] << 6) & 0xC0) | ((idx[2] << 1) & 0x3E) | ((idx[3] >> 4) & 0x1)));
+        data::put(decoded, state, (uint8_t)(((idx[3] << 4) & 0xF0) | ((idx[4] >> 1) & 0xF)));
+        data::put(decoded, state, (uint8_t)(((idx[4] << 7) & 0x80) | ((idx[5] << 2) & 0x7C) | ((idx[6] >> 3) & 0x3)));
+        data::put(decoded, state, (uint8_t)(((idx[6] << 5) & 0xE0) | (idx[7] & 0x1F)));
+    }
+
+    template <typename Result, typename ResultState>
+    static CPPCODEC_ALWAYS_INLINE void tail(
+            Result& decoded, ResultState& state, const uint8_t* idx, size_t idx_len)
+    {
+        if (idx_len == 1) {
+            throw invalid_input_length("invalid number of symbols in last base32 block: "
+                    "found 1, expected 2, 4, 5 or 7");
+        }
+        if (idx_len == 3) {
+            throw invalid_input_length("invalid number of symbols in last base32 block: "
+                    "found 3, expected 2, 4, 5 or 7");
+        }
+        if (idx_len == 6) {
+            throw invalid_input_length("invalid number of symbols in last base32 block: "
+                    "found 6, expected 2, 4, 5 or 7");
+        }
+
+        data::put(decoded, state, (uint8_t)(((idx[0] << 3) & 0xF8) | ((idx[1] >> 2) & 0x7)));
+        if (idx_len == 2) { return; } // decoded size 1
+        data::put(decoded, state, (uint8_t)(((idx[1] << 6) & 0xC0) | ((idx[2] << 1) & 0x3E) | ((idx[3] >> 4) & 0x1)));
+        if (idx_len == 4) { return; } // decoded size 2
+        data::put(decoded, state, (uint8_t)(((idx[3] << 4) & 0xF0) | ((idx[4] >> 1) & 0xF)));
+        if (idx_len == 5) { return; } // decoded size 3
+        data::put(decoded, state, (uint8_t)(((idx[4] << 7) & 0x80) | ((idx[5] << 2) & 0x7C) | ((idx[6] >> 3) & 0x3)));
+        if (idx_len == 7) { return; } // decoded size 4
+
+        throw invalid_input_length("invalid number of symbols in last base32 block");
+    }
+};
+
+template <typename CodecVariant>
+struct base32 : public CodecVariant::template codec_impl<base32<CodecVariant>>
+{
     static inline constexpr uint8_t binary_block_size() { return 5; }
     static inline constexpr uint8_t encoded_block_size() { return 8; }
+
+    using block_encoder = per_index_block_encoder<base32, CodecVariant>;
+    using block_decoder = base32_block_decoder;
 
     static CPPCODEC_ALWAYS_INLINE constexpr uint8_t num_encoded_tail_symbols(uint8_t num_bytes)
     {
@@ -92,55 +136,6 @@ public:
 //     11111111 10101010 10110011  10111100 10010100
 // => 11111 11110 10101 01011 00111 01111 00100 10100
 //
-
-template <typename CodecVariant>
-template <typename Result, typename ResultState>
-inline void base32<CodecVariant>::decode_block(
-        Result& decoded, ResultState& state, const uint8_t* idx)
-{
-    put(decoded, state, (uint8_t)(((idx[0] << 3) & 0xF8) | ((idx[1] >> 2) & 0x7)));
-    put(decoded, state, (uint8_t)(((idx[1] << 6) & 0xC0) | ((idx[2] << 1) & 0x3E) | ((idx[3] >> 4) & 0x1)));
-    put(decoded, state, (uint8_t)(((idx[3] << 4) & 0xF0) | ((idx[4] >> 1) & 0xF)));
-    put(decoded, state, (uint8_t)(((idx[4] << 7) & 0x80) | ((idx[5] << 2) & 0x7C) | ((idx[6] >> 3) & 0x3)));
-    put(decoded, state, (uint8_t)(((idx[6] << 5) & 0xE0) | (idx[7] & 0x1F)));
-}
-
-template <typename CodecVariant>
-template <typename Result, typename ResultState>
-inline void base32<CodecVariant>::decode_tail(
-        Result& decoded, ResultState& state, const uint8_t* idx, size_t idx_len)
-{
-    if (idx_len == 1) {
-        throw invalid_input_length(
-                "invalid number of symbols in last base32 block: found 1, expected 2, 4, 5 or 7");
-    }
-    if (idx_len == 3) {
-        throw invalid_input_length(
-                "invalid number of symbols in last base32 block: found 3, expected 2, 4, 5 or 7");
-    }
-    if (idx_len == 6) {
-        throw invalid_input_length(
-                "invalid number of symbols in last base32 block: found 6, expected 2, 4, 5 or 7");
-    }
-
-    // idx_len == 2: decoded size 1
-    put(decoded, state, (uint8_t)(((idx[0] << 3) & 0xF8) | ((idx[1] >> 2) & 0x7)));
-    if (idx_len == 2) {
-        return;
-    }
-    // idx_len == 4: decoded size 2
-    put(decoded, state, (uint8_t)(((idx[1] << 6) & 0xC0) | ((idx[2] << 1) & 0x3E) | ((idx[3] >> 4) & 0x1)));
-    if (idx_len == 4) {
-        return;
-    }
-    // idx_len == 5: decoded size 3
-    put(decoded, state, (uint8_t)(((idx[3] << 4) & 0xF0) | ((idx[4] >> 1) & 0xF)));
-    if (idx_len == 5) {
-        return;
-    }
-    // idx_len == 7: decoded size 4
-    put(decoded, state, (uint8_t)(((idx[4] << 7) & 0x80) | ((idx[5] << 2) & 0x7C) | ((idx[6] >> 3) & 0x3)));
-}
 
 } // namespace detail
 } // namespace cppcodec
