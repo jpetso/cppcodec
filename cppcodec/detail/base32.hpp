@@ -98,10 +98,10 @@ public:
     }
 
     template <typename Result, typename ResultState>
-    static void decode_block(Result& decoded, ResultState&, const uint8_t* idx);
+    static void decode_block(Result& decoded, ResultState&, const codec_idx_t* idx);
 
     template <typename Result, typename ResultState>
-    static void decode_tail(Result& decoded, ResultState&, const uint8_t* idx, size_t idx_len);
+    static void decode_tail(Result& decoded, ResultState&, const codec_idx_t* idx, size_t idx_len);
 };
 
 //
@@ -112,7 +112,7 @@ public:
 template <typename CodecVariant>
 template <typename Result, typename ResultState>
 inline void base32<CodecVariant>::decode_block(
-        Result& decoded, ResultState& state, const uint8_t* idx)
+        Result& decoded, ResultState& state, const codec_idx_t* idx)
 {
     put(decoded, state, static_cast<uint8_t>(((idx[0] << 3) & 0xF8) | ((idx[1] >> 2) & 0x7)));
     put(decoded, state, static_cast<uint8_t>(((idx[1] << 6) & 0xC0) | ((idx[2] << 1) & 0x3E) | ((idx[3] >> 4) & 0x1)));
@@ -124,7 +124,7 @@ inline void base32<CodecVariant>::decode_block(
 template <typename CodecVariant>
 template <typename Result, typename ResultState>
 inline void base32<CodecVariant>::decode_tail(
-        Result& decoded, ResultState& state, const uint8_t* idx, size_t idx_len)
+        Result& decoded, ResultState& state, const codec_idx_t* idx, size_t idx_len)
 {
     if (idx_len == 1) {
         throw invalid_input_length(

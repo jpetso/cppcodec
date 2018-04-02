@@ -33,6 +33,8 @@
 namespace cppcodec {
 namespace detail {
 
+using codec_idx_t = uint_fast32_t;
+
 template <typename Codec, typename CodecVariant>
 class stream_codec
 {
@@ -155,8 +157,8 @@ inline void stream_codec<Codec, CodecVariant>::decode(
     const char* src = src_encoded;
     const char* src_end = src + src_size;
 
-    uint8_t idx[Codec::encoded_block_size()] = {};
-    uint8_t last_value_idx = 0;
+    codec_idx_t idx[Codec::encoded_block_size()] = {};
+    codec_idx_t last_value_idx = 0;
 
     while (src < src_end) {
         if (CodecVariant::should_ignore(idx[last_value_idx] = CodecVariant::index_of(*(src++)))) {
@@ -173,7 +175,7 @@ inline void stream_codec<Codec, CodecVariant>::decode(
         }
     }
 
-    uint8_t last_idx = last_value_idx;
+    codec_idx_t last_idx = last_value_idx;
     if (CodecVariant::is_padding_symbol(idx[last_value_idx])) {
         if (!last_value_idx) {
             // Don't accept padding at the start of a block.

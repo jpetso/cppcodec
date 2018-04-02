@@ -86,27 +86,28 @@ public:
     }
 
     template <typename Result, typename ResultState>
-    static void decode_block(Result& decoded, ResultState&, const uint8_t* idx);
+    static CPPCODEC_ALWAYS_INLINE void decode_block(Result& decoded, ResultState&, const codec_idx_t* idx);
 
     template <typename Result, typename ResultState>
-    static void decode_tail(Result& decoded, ResultState&, const uint8_t* idx, size_t idx_len);
+    static CPPCODEC_ALWAYS_INLINE void decode_tail(Result& decoded, ResultState&, const codec_idx_t* idx, size_t idx_len);
 };
 
 
 template <typename CodecVariant>
 template <typename Result, typename ResultState>
-inline void base64<CodecVariant>::decode_block(
-        Result& decoded, ResultState& state, const uint8_t* idx)
+CPPCODEC_ALWAYS_INLINE void base64<CodecVariant>::decode_block(
+        Result& decoded, ResultState& state, const codec_idx_t* idx)
 {
-    data::put(decoded, state, static_cast<uint8_t>((idx[0] << 2) + ((idx[1] & 0x30) >> 4)));
-    data::put(decoded, state, static_cast<uint8_t>(((idx[1] & 0xF) << 4) + ((idx[2] & 0x3C) >> 2)));
-    data::put(decoded, state, static_cast<uint8_t>(((idx[2] & 0x3) << 6) + idx[3]));
+    codec_idx_t dec = (idx[0] << 18) | (idx[1] << 12) | (idx[2] << 6) | idx[3];
+    data::put(decoded, state, static_cast<uint8_t>(dec >> 16));
+    data::put(decoded, state, static_cast<uint8_t>((dec >> 8) & 0xFF));
+    data::put(decoded, state, static_cast<uint8_t>(dec & 0xFF));
 }
 
 template <typename CodecVariant>
 template <typename Result, typename ResultState>
-inline void base64<CodecVariant>::decode_tail(
-        Result& decoded, ResultState& state, const uint8_t* idx, size_t idx_len)
+CPPCODEC_ALWAYS_INLINE void base64<CodecVariant>::decode_tail(
+        Result& decoded, ResultState& state, const codec_idx_t* idx, size_t idx_len)
 {
     if (idx_len == 1) {
         throw invalid_input_length(

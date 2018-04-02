@@ -64,10 +64,10 @@ public:
     }
 
     // RFC4648 does not specify any whitespace being allowed in base32 encodings.
-    static CPPCODEC_ALWAYS_INLINE constexpr bool should_ignore(uint8_t /*index*/) { return false; }
-    static CPPCODEC_ALWAYS_INLINE constexpr bool is_special_character(uint8_t index) { return index > 32; }
-    static CPPCODEC_ALWAYS_INLINE constexpr bool is_padding_symbol(uint8_t index) { return index == 254; }
-    static CPPCODEC_ALWAYS_INLINE constexpr bool is_eof(uint8_t index) { return index == 255; }
+    static CPPCODEC_ALWAYS_INLINE constexpr bool should_ignore(codec_idx_t /*index*/) { return false; }
+    static CPPCODEC_ALWAYS_INLINE constexpr bool is_special_character(codec_idx_t index) { return index > 32; }
+    static CPPCODEC_ALWAYS_INLINE constexpr bool is_padding_symbol(codec_idx_t index) { return index == 254; }
+    static CPPCODEC_ALWAYS_INLINE constexpr bool is_eof(codec_idx_t index) { return index == 255; }
 };
 
 } // namespace detail
