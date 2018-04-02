@@ -76,9 +76,9 @@ public:
                 : throw symbol_error(c);
     }
 
-    static CPPCODEC_ALWAYS_INLINE constexpr bool should_ignore(uint8_t index) { return index == 253; }
-    static CPPCODEC_ALWAYS_INLINE constexpr bool is_special_character(uint8_t index) { return index > 32; }
-    static CPPCODEC_ALWAYS_INLINE constexpr bool is_eof(uint8_t index) { return index == 255; }
+    static CPPCODEC_ALWAYS_INLINE constexpr bool should_ignore(codec_idx_t index) { return index == 253; }
+    static CPPCODEC_ALWAYS_INLINE constexpr bool is_special_character(codec_idx_t index) { return index > 32; }
+    static CPPCODEC_ALWAYS_INLINE constexpr bool is_eof(codec_idx_t index) { return index == 255; }
 };
 
 // base32_crockford is a concatenative iterative (i.e. streaming) interpretation of Crockford base32.
