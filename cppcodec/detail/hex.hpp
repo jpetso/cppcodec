@@ -35,31 +35,6 @@
 namespace cppcodec {
 namespace detail {
 
-class hex_base
-{
-public:
-    static CPPCODEC_ALWAYS_INLINE constexpr uint8_t index_of(char c)
-    {
-        // Hex decoding is always case-insensitive (even in RFC 4648),
-        // it's only a question of what we want to encode ourselves.
-        return (c >= '0' && c <= '9') ? (c - '0')
-                : (c >= 'A' && c <= 'F') ? (c - 'A' + 10)
-                : (c >= 'a' && c <= 'f') ? (c - 'a' + 10)
-                : (c == '\0') ? 255 // stop at end of string
-                : throw symbol_error(c);
-    }
-
-    // RFC4648 does not specify any whitespace being allowed in base64 encodings.
-    static CPPCODEC_ALWAYS_INLINE constexpr bool should_ignore(codec_idx_t /*index*/) { return false; }
-    static CPPCODEC_ALWAYS_INLINE constexpr bool is_special_character(codec_idx_t index) { return index > 64; }
-    static CPPCODEC_ALWAYS_INLINE constexpr bool is_eof(codec_idx_t index) { return index == 255; }
-
-    static CPPCODEC_ALWAYS_INLINE constexpr bool generates_padding() { return false; }
-    // FIXME: doesn't require padding, but requires a multiple of the encoded block size (2)
-    static CPPCODEC_ALWAYS_INLINE constexpr bool requires_padding() { return false; }
-    static CPPCODEC_ALWAYS_INLINE constexpr bool is_padding_symbol(codec_idx_t /*index*/) { return false; }
-};
-
 template <typename CodecVariant>
 class hex : public CodecVariant::template codec_impl<hex<CodecVariant>>
 {
@@ -106,24 +81,25 @@ public:
     }
 
     template <typename Result, typename ResultState>
-    static void decode_block(Result& decoded, ResultState&, const codec_idx_t* idx);
+    static void decode_block(Result& decoded, ResultState&, const alphabet_index_t* idx);
 
     template <typename Result, typename ResultState>
-    static void decode_tail(Result& decoded, ResultState&, const codec_idx_t* idx, size_t idx_len);
+    static void decode_tail(Result& decoded, ResultState&, const alphabet_index_t* idx, size_t idx_len);
 };
 
 
 template <typename CodecVariant>
 template <typename Result, typename ResultState>
-inline void hex<CodecVariant>::decode_block(
-        Result& decoded, ResultState& state, const codec_idx_t* idx)
+CPPCODEC_ALWAYS_INLINE void hex<CodecVariant>::decode_block(
+        Result& decoded, ResultState& state, const alphabet_index_t* idx)
 {
     data::put(decoded, state, static_cast<uint8_t>((idx[0] << 4) | idx[1]));
 }
 
 template <typename CodecVariant>
 template <typename Result, typename ResultState>
-inline void hex<CodecVariant>::decode_tail(Result&, ResultState&, const codec_idx_t*, size_t)
+CPPCODEC_ALWAYS_INLINE void hex<CodecVariant>::decode_tail(
+        Result&, ResultState&, const alphabet_index_t*, size_t)
 {
     throw invalid_input_length(
             "odd-length hex input is not supported by the streaming octet decoder, "
