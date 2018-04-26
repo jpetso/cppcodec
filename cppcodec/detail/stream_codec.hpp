@@ -239,10 +239,10 @@ struct alphabet_index_info
 {
     static constexpr const size_t num_possible_symbols = num_possible_values<char>();
 
-    static constexpr const alphabet_index_t padding_idx = 1 << 8;
-    static constexpr const alphabet_index_t invalid_idx = 1 << 9;
-    static constexpr const alphabet_index_t eof_idx = 1 << 10;
-    static constexpr const alphabet_index_t stop_character_mask = ~0xFF;
+    static constexpr const alphabet_index_t padding_idx = (1 << 7) | (1 << 4);
+    static constexpr const alphabet_index_t invalid_idx = (1 << 7) | (1 << 5);
+    static constexpr const alphabet_index_t eof_idx = (1 << 7) | (1 << 6);
+    static constexpr const alphabet_index_t stop_character_mask = (1 << 7);
 
     static constexpr const bool padding_allowed = padding_searcher<
             CodecVariant, num_possible_symbols>::exists_padding_symbol();
